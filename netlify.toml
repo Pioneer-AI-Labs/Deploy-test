@@ -1,0 +1,64 @@
+# Netlify Configuration for Static Site Deployment
+
+[build]
+# No build command needed for pure static HTML
+# If you have a build process (e.g., with a bundler), uncomment and modify:
+# command = "npm run build"
+publish = "."
+
+# Environment variables (uncomment and modify as needed)
+# [build.environment]
+# NODE_ENV = "production"
+
+# Production deployment context
+[context.production]
+command = ""
+publish = "."
+
+# Preview deployment context (for pull requests)
+[context.deploy-preview]
+command = ""
+publish = "."
+
+# Branch deploy context (for individual branches)
+[context.branch-deploy]
+command = ""
+publish = "."
+
+# Redirect rules for single-page applications
+# Uncomment if you need SPA routing (e.g., for frameworks like React, Vue)
+# [[redirects]]
+# from = "/*"
+# to = "/index.html"
+# status = 200
+
+# Security and performance headers
+[[headers]]
+for = "/*"
+[headers.values]
+X-Content-Type-Options = "nosniff"
+X-Frame-Options = "DENY"
+X-XSS-Protection = "1; mode=block"
+Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Cache control for static assets
+[[headers]]
+for = "/css/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/js/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/images/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+# HTML files: don't cache (or short cache)
+[[headers]]
+for = "/*.html"
+[headers.values]
+Cache-Control = "public, max-age=3600, must-revalidate"
