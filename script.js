@@ -63,10 +63,9 @@ class Converter {
   async loadTOMLLibrary() {
     return new Promise((resolve) => {
       const script = document.createElement('script');
-      // Using smol-toml from jsDelivr - ES module build
       script.type = 'module';
       script.textContent = `
-        import TOML from 'https://cdn.jsdelivr.net/npm/smol-toml@1.3.1/dist/index.min.mjs';
+        import * as TOML from 'https://esm.sh/smol-toml@1.3.1';
         window.TOML = TOML;
         window.dispatchEvent(new Event('toml-loaded'));
       `;
@@ -80,8 +79,8 @@ class Converter {
         }
       }, { once: true });
 
-      script.onerror = () => {
-        console.error('Failed to load TOML library');
+      script.onerror = (e) => {
+        console.error('Failed to load TOML library:', e);
         resolve(false);
       };
 
