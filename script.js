@@ -63,20 +63,22 @@ class Converter {
   async loadTOMLLibrary() {
     return new Promise((resolve) => {
       const script = document.createElement('script');
-      // Using @iarna/toml from UNPKG - browser-friendly UMD build
-      script.src = 'https://unpkg.com/@iarna/toml@2.2.5/dist/toml.umd.js';
-      script.integrity = 'sha384-zGJN8yZ7UqnVb6P4z9VQB8o+kBzQF8F5DQKPWnKVnYl5M8L5fXJb8QqW6p5fQZ8M';
-      script.crossOrigin = 'anonymous';
+      // Using smol-toml from jsDelivr - ES module build
+      script.type = 'module';
+      script.textContent = `
+        import TOML from 'https://cdn.jsdelivr.net/npm/smol-toml@1.3.1/dist/index.min.mjs';
+        window.TOML = TOML;
+        window.dispatchEvent(new Event('toml-loaded'));
+      `;
 
-      script.onload = () => {
-        // @iarna/toml exposes TOML globally
+      window.addEventListener('toml-loaded', () => {
         this.TOML = window.TOML;
         if (this.TOML && this.TOML.parse && this.TOML.stringify) {
           resolve(true);
         } else {
           resolve(false);
         }
-      };
+      }, { once: true });
 
       script.onerror = () => {
         console.error('Failed to load TOML library');
