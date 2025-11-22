@@ -1,82 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="A simple and clean task tracker app for managing your daily tasks">
-  <meta name="theme-color" content="#2563eb">
-  <title>Task Tracker - Manage Your Tasks</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Convert between JSON and TOML formats easily">
+    <meta name="theme-color" content="#ffffff">
+    <title>JSON ⇄ TOML Converter</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="container">
-    <header class="app-header">
-      <h1>Task Tracker</h1>
-      <p class="subtitle">Stay organized and get things done</p>
-    </header>
+    <div class="container">
+        <header class="app-header">
+            <h1>JSON ⇄ TOML</h1>
+            <p class="subtitle">Convert between JSON and TOML formats</p>
+        </header>
 
-    <main class="app-main">
-      <!-- Input Section -->
-      <section class="input-section">
-        <form id="taskForm" class="task-form">
-          <div class="input-group">
-            <input
-              type="text"
-              id="taskInput"
-              class="task-input"
-              placeholder="Add a new task..."
-              required
-              autocomplete="off"
-            >
-            <button type="submit" class="btn btn-primary">Add Task</button>
-          </div>
-        </form>
-      </section>
+        <div class="converter-section">
+            <div class="controls">
+                <button id="jsonToTomlBtn" class="direction-btn active" title="Convert JSON to TOML">
+                    JSON → TOML
+                </button>
+                <button id="tomlToJsonBtn" class="direction-btn" title="Convert TOML to JSON">
+                    TOML → JSON
+                </button>
+            </div>
 
-      <!-- Stats Section -->
-      <section class="stats-section">
-        <div class="stat-card">
-          <span class="stat-label">Total Tasks</span>
-          <span class="stat-value" id="totalTasks">0</span>
+            <div class="panels">
+                <div class="panel input-panel">
+                    <div class="panel-header">
+                        <label for="inputArea" id="inputLabel">JSON Input</label>
+                    </div>
+                    <textarea
+                        id="inputArea"
+                        class="textarea"
+                        placeholder="Paste your JSON here..."
+                        spellcheck="false"
+                    ></textarea>
+                </div>
+
+                <div class="panel output-panel">
+                    <div class="panel-header">
+                        <label for="outputArea" id="outputLabel">TOML Output</label>
+                    </div>
+                    <textarea
+                        id="outputArea"
+                        class="textarea"
+                        placeholder="Converted output will appear here..."
+                        readonly
+                        spellcheck="false"
+                    ></textarea>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button id="copyBtn" class="action-btn" title="Copy output to clipboard">
+                    📋 Copy
+                </button>
+                <button id="clearBtn" class="action-btn" title="Clear all inputs">
+                    🗑 Clear
+                </button>
+                <button id="sampleBtn" class="action-btn" title="Load sample JSON">
+                    📝 Sample
+                </button>
+            </div>
         </div>
-        <div class="stat-card">
-          <span class="stat-label">Completed</span>
-          <span class="stat-value" id="completedTasks">0</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">Remaining</span>
-          <span class="stat-value" id="remainingTasks">0</span>
-        </div>
-      </section>
 
-      <!-- Filter Section -->
-      <section class="filter-section">
-        <button class="filter-btn active" data-filter="all">All</button>
-        <button class="filter-btn" data-filter="active">Active</button>
-        <button class="filter-btn" data-filter="completed">Completed</button>
-      </section>
+        <footer class="app-footer">
+            <p>JSON ⇄ TOML Converter • Built with care</p>
+        </footer>
+    </div>
 
-      <!-- Tasks List Section -->
-      <section class="tasks-section">
-        <div id="tasksContainer" class="tasks-container">
-          <div class="empty-state">
-            <p>No tasks yet. Add one to get started!</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Actions Section -->
-      <section class="actions-section">
-        <button id="clearCompleted" class="btn btn-secondary">Clear Completed</button>
-        <button id="deleteAll" class="btn btn-danger">Delete All</button>
-      </section>
-    </main>
-
-    <footer class="app-footer">
-      <p>Task Tracker v1.0 - Built with care</p>
-    </footer>
-  </div>
-
-  <script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

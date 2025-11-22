@@ -1,110 +1,196 @@
-// Simple Todo/Task App with LocalStorage Persistence
+// JSON ↔ TOML Converter
+// Uses smol-toml library from CDN
 
-class TodoApp {
+class Converter {
   constructor() {
-    this.tasks = [];
-    this.taskInput = document.getElementById('taskInput');
-    this.addBtn = document.getElementById('addBtn');
-    this.taskList = document.getElementById('taskList');
+    // DOM elements
+    this.jsonInput = document.getElementById('jsonInput');
+    this.tomlInput = document.getElementById('tomlInput');
+    this.errorDisplay = document.getElementById('errorDisplay');
 
-    // Load tasks from localStorage on page load
-    this.loadTasks();
+    // State
+    this.lastEditedSide = 'json';
+    this.debounceTimer = null;
+    this.TOML = null; // Will be loaded from CDN
+
+    // Initialize
+    this.init();
+  }
+
+  async init() {
+    // Wait for TOML library to load
+    await this.waitForTOML();
 
     // Event listeners
-    this.addBtn.addEventListener('click', () => this.addTask());
-    this.taskInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') this.addTask();
+    this.jsonInput.addEventListener('input', () => this.handleInput('json'));
+    this.tomlInput.addEventListener('input', () => this.handleInput('toml'));
+
+    document.getElementById('copyJson').addEventListener('click', () => this.copyToClipboard('json'));
+    document.getElementById('copyToml').addEventListener('click', () => this.copyToClipboard('toml'));
+    document.getElementById('loadSample').addEventListener('click', () => this.loadSample());
+    document.getElementById('clearAll').addEventListener('click', () => this.clearAll());
+
+    // Load sample on first visit
+    this.loadSample();
+  }
+
+  async waitForTOML() {
+    // Wait for smol-toml to be available
+    return new Promise((resolve) => {
+      const checkTOML = setInterval(() => {
+        if (window.TOML && window.TOML.parse && window.TOML.stringify) {
+          this.TOML = window.TOML;
+          clearInterval(checkTOML);
+          resolve();
+        }
+      }, 50);
     });
   }
 
-  // Add a new task
-  addTask() {
-    const taskText = this.taskInput.value.trim();
+  handleInput(side) {
+    this.lastEditedSide = side;
+    this.clearError();
 
-    if (taskText === '') {
-      alert('Please enter a task!');
+    // Debounce conversion
+    clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(() => {
+      this.convert(side);
+    }, 300);
+  }
+
+  convert(from) {
+    try {
+      if (from === 'json') {
+        this.jsonToToml();
+      } else {
+        this.tomlToJson();
+      }
+    } catch (error) {
+      this.showError(error.message);
+    }
+  }
+
+  jsonToToml() {
+    const jsonText = this.jsonInput.value.trim();
+
+    if (!jsonText) {
+      this.tomlInput.value = '';
       return;
     }
 
-    const task = {
-      id: Date.now(),
-      text: taskText,
-      completed: false
+    try {
+      // Parse JSON
+      const jsonObj = JSON.parse(jsonText);
+
+      // Convert to TOML
+      const tomlText = this.TOML.stringify(jsonObj);
+      this.tomlInput.value = tomlText;
+
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        throw new Error(`Invalid JSON: ${error.message}`);
+      }
+      throw new Error(`Conversion error: ${error.message}`);
+    }
+  }
+
+  tomlToJson() {
+    const tomlText = this.tomlInput.value.trim();
+
+    if (!tomlText) {
+      this.jsonInput.value = '';
+      return;
+    }
+
+    try {
+      // Parse TOML
+      const tomlObj = this.TOML.parse(tomlText);
+
+      // Convert to JSON with pretty formatting
+      const jsonText = JSON.stringify(tomlObj, null, 2);
+      this.jsonInput.value = jsonText;
+
+    } catch (error) {
+      throw new Error(`Invalid TOML: ${error.message}`);
+    }
+  }
+
+  async copyToClipboard(side) {
+    const text = side === 'json' ? this.jsonInput.value : this.tomlInput.value;
+
+    if (!text.trim()) {
+      this.showError('Nothing to copy!');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      this.showSuccess(`${side.toUpperCase()} copied to clipboard!`);
+    } catch (error) {
+      this.showError('Failed to copy to clipboard');
+    }
+  }
+
+  loadSample() {
+    const sampleJson = {
+      "app": {
+        "name": "JSON-TOML Converter",
+        "version": "1.0.0",
+        "description": "A simple and elegant converter"
+      },
+      "features": [
+        "Bi-directional conversion",
+        "Live updates",
+        "Copy to clipboard",
+        "Error handling"
+      ],
+      "config": {
+        "theme": "light",
+        "debounce": 300,
+        "autoConvert": true
+      },
+      "metadata": {
+        "created": "2025-11-22",
+        "author": "Claude"
+      }
     };
 
-    this.tasks.push(task);
-    this.saveTasks();
-    this.renderTasks();
-    this.taskInput.value = '';
-    this.taskInput.focus();
+    this.jsonInput.value = JSON.stringify(sampleJson, null, 2);
+    this.lastEditedSide = 'json';
+    this.convert('json');
   }
 
-  // Mark task as complete/incomplete
-  toggleComplete(taskId) {
-    const task = this.tasks.find(t => t.id === taskId);
-    if (task) {
-      task.completed = !task.completed;
-      this.saveTasks();
-      this.renderTasks();
-    }
+  clearAll() {
+    this.jsonInput.value = '';
+    this.tomlInput.value = '';
+    this.clearError();
   }
 
-  // Delete a task
-  deleteTask(taskId) {
-    this.tasks = this.tasks.filter(t => t.id !== taskId);
-    this.saveTasks();
-    this.renderTasks();
+  showError(message) {
+    this.errorDisplay.textContent = `❌ ${message}`;
+    this.errorDisplay.className = 'message error';
+    this.errorDisplay.style.display = 'block';
+
+    // Auto-hide after 5 seconds
+    setTimeout(() => this.clearError(), 5000);
   }
 
-  // Render all tasks to the DOM
-  renderTasks() {
-    this.taskList.innerHTML = '';
+  showSuccess(message) {
+    this.errorDisplay.textContent = `✓ ${message}`;
+    this.errorDisplay.className = 'message success';
+    this.errorDisplay.style.display = 'block';
 
-    if (this.tasks.length === 0) {
-      this.taskList.innerHTML = '<p style="text-align: center; color: #999;">No tasks yet. Add one to get started!</p>';
-      return;
-    }
-
-    this.tasks.forEach(task => {
-      const taskElement = document.createElement('li');
-      taskElement.className = `task-item ${task.completed ? 'completed' : ''}`;
-      taskElement.innerHTML = `
-        <div class="task-content">
-          <input
-            type="checkbox"
-            class="task-checkbox"
-            ${task.completed ? 'checked' : ''}
-            onchange="app.toggleComplete(${task.id})"
-          />
-          <span class="task-text">${this.escapeHtml(task.text)}</span>
-        </div>
-        <button class="delete-btn" onclick="app.deleteTask(${task.id})">Delete</button>
-      `;
-      this.taskList.appendChild(taskElement);
-    });
+    // Auto-hide after 2 seconds
+    setTimeout(() => this.clearError(), 2000);
   }
 
-  // Save tasks to localStorage
-  saveTasks() {
-    localStorage.setItem('tasks', JSON.stringify(this.tasks));
-  }
-
-  // Load tasks from localStorage
-  loadTasks() {
-    const saved = localStorage.getItem('tasks');
-    this.tasks = saved ? JSON.parse(saved) : [];
-    this.renderTasks();
-  }
-
-  // Escape HTML to prevent XSS
-  escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+  clearError() {
+    this.errorDisplay.style.display = 'none';
+    this.errorDisplay.textContent = '';
   }
 }
 
-// Initialize the app when DOM is ready
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-  window.app = new TodoApp();
+  window.converter = new Converter();
 });
