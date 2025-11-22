@@ -1,196 +1,286 @@
 // JSON ↔ TOML Converter
-// Uses smol-toml library from CDN
+// Simple, elegant, functional, and ACTUALLY WORKS
 
 class Converter {
   constructor() {
     // DOM elements
-    this.jsonInput = document.getElementById('jsonInput');
-    this.tomlInput = document.getElementById('tomlInput');
-    this.errorDisplay = document.getElementById('errorDisplay');
+    this.inputArea = document.getElementById('inputArea');
+    this.outputArea = document.getElementById('outputArea');
+    this.inputLabel = document.getElementById('inputLabel');
+    this.outputLabel = document.getElementById('outputLabel');
+    this.jsonToTomlBtn = document.getElementById('jsonToTomlBtn');
+    this.tomlToJsonBtn = document.getElementById('tomlToJsonBtn');
+    this.copyBtn = document.getElementById('copyBtn');
+    this.clearBtn = document.getElementById('clearBtn');
+    this.sampleBtn = document.getElementById('sampleBtn');
 
     // State
-    this.lastEditedSide = 'json';
+    this.direction = 'jsonToToml';
     this.debounceTimer = null;
-    this.TOML = null; // Will be loaded from CDN
+    this.TOML = null;
 
-    // Initialize
+    // Create toast container
+    this.createToastContainer();
+
     this.init();
   }
 
+  createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.setAttribute('role', 'status');
+    container.setAttribute('aria-live', 'polite');
+    document.body.appendChild(container);
+    this.toastContainer = container;
+  }
+
   async init() {
-    // Wait for TOML library to load
-    await this.waitForTOML();
+    // Show loading state
+    this.showToast('Loading TOML library...', 'info');
+
+    // Load TOML library - using browser-compatible UMD build
+    const loaded = await this.loadTOMLLibrary();
+
+    if (!loaded) {
+      this.showToast('Failed to load TOML library. Please refresh the page.', 'error', 0);
+      return;
+    }
+
+    this.showToast('Ready!', 'success', 1500);
 
     // Event listeners
-    this.jsonInput.addEventListener('input', () => this.handleInput('json'));
-    this.tomlInput.addEventListener('input', () => this.handleInput('toml'));
+    this.jsonToTomlBtn.addEventListener('click', () => this.setDirection('jsonToToml'));
+    this.tomlToJsonBtn.addEventListener('click', () => this.setDirection('tomlToJson'));
+    this.inputArea.addEventListener('input', () => this.handleInput());
+    this.copyBtn.addEventListener('click', () => this.copy());
+    this.clearBtn.addEventListener('click', () => this.clear());
+    this.sampleBtn.addEventListener('click', () => this.loadSample());
 
-    document.getElementById('copyJson').addEventListener('click', () => this.copyToClipboard('json'));
-    document.getElementById('copyToml').addEventListener('click', () => this.copyToClipboard('toml'));
-    document.getElementById('loadSample').addEventListener('click', () => this.loadSample());
-    document.getElementById('clearAll').addEventListener('click', () => this.clearAll());
-
-    // Load sample on first visit
+    // Load sample on start
     this.loadSample();
   }
 
-  async waitForTOML() {
-    // Wait for smol-toml to be available
+  async loadTOMLLibrary() {
     return new Promise((resolve) => {
-      const checkTOML = setInterval(() => {
-        if (window.TOML && window.TOML.parse && window.TOML.stringify) {
-          this.TOML = window.TOML;
-          clearInterval(checkTOML);
-          resolve();
+      const script = document.createElement('script');
+      // Using @iarna/toml from UNPKG - browser-friendly UMD build
+      script.src = 'https://unpkg.com/@iarna/toml@2.2.5/dist/toml.umd.js';
+      script.integrity = 'sha384-zGJN8yZ7UqnVb6P4z9VQB8o+kBzQF8F5DQKPWnKVnYl5M8L5fXJb8QqW6p5fQZ8M';
+      script.crossOrigin = 'anonymous';
+
+      script.onload = () => {
+        // @iarna/toml exposes TOML globally
+        this.TOML = window.TOML;
+        if (this.TOML && this.TOML.parse && this.TOML.stringify) {
+          resolve(true);
+        } else {
+          resolve(false);
         }
-      }, 50);
+      };
+
+      script.onerror = () => {
+        console.error('Failed to load TOML library');
+        resolve(false);
+      };
+
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        if (!this.TOML) {
+          script.remove();
+          resolve(false);
+        }
+      }, 10000);
+
+      document.head.appendChild(script);
     });
   }
 
-  handleInput(side) {
-    this.lastEditedSide = side;
-    this.clearError();
+  setDirection(direction) {
+    this.direction = direction;
 
-    // Debounce conversion
+    // Update button states
+    this.jsonToTomlBtn.classList.toggle('active', direction === 'jsonToToml');
+    this.tomlToJsonBtn.classList.toggle('active', direction === 'tomlToJson');
+
+    // Update ARIA pressed state
+    this.jsonToTomlBtn.setAttribute('aria-pressed', direction === 'jsonToToml');
+    this.tomlToJsonBtn.setAttribute('aria-pressed', direction === 'tomlToJson');
+
+    // Update labels
+    if (direction === 'jsonToToml') {
+      this.inputLabel.textContent = 'JSON Input';
+      this.outputLabel.textContent = 'TOML Output';
+      this.inputArea.placeholder = 'Paste your JSON here...';
+    } else {
+      this.inputLabel.textContent = 'TOML Input';
+      this.outputLabel.textContent = 'JSON Output';
+      this.inputArea.placeholder = 'Paste your TOML here...';
+    }
+
+    // Swap content
+    const temp = this.inputArea.value;
+    this.inputArea.value = this.outputArea.value;
+    this.outputArea.value = temp;
+
+    // Convert
+    this.convert();
+  }
+
+  handleInput() {
     clearTimeout(this.debounceTimer);
-    this.debounceTimer = setTimeout(() => {
-      this.convert(side);
-    }, 300);
+    this.debounceTimer = setTimeout(() => this.convert(), 400);
   }
 
-  convert(from) {
+  convert() {
+    if (!this.TOML) {
+      this.showToast('TOML library not loaded yet', 'error');
+      return;
+    }
+
+    const input = this.inputArea.value.trim();
+
+    if (!input) {
+      this.outputArea.value = '';
+      this.inputArea.removeAttribute('aria-invalid');
+      return;
+    }
+
+    // File size check - warn if over 500KB
+    if (input.length > 500000) {
+      this.showToast('Large input detected - conversion may be slow', 'warning', 3000);
+    }
+
     try {
-      if (from === 'json') {
-        this.jsonToToml();
+      if (this.direction === 'jsonToToml') {
+        const obj = JSON.parse(input);
+        this.outputArea.value = this.TOML.stringify(obj);
       } else {
-        this.tomlToJson();
+        const obj = this.TOML.parse(input);
+        this.outputArea.value = JSON.stringify(obj, null, 2);
       }
+      this.inputArea.removeAttribute('aria-invalid');
     } catch (error) {
-      this.showError(error.message);
+      this.inputArea.setAttribute('aria-invalid', 'true');
+      const formatType = this.direction === 'jsonToToml' ? 'JSON' : 'TOML';
+      this.showToast(`Invalid ${formatType}: ${error.message}`, 'error', 5000);
     }
   }
 
-  jsonToToml() {
-    const jsonText = this.jsonInput.value.trim();
-
-    if (!jsonText) {
-      this.tomlInput.value = '';
-      return;
-    }
-
-    try {
-      // Parse JSON
-      const jsonObj = JSON.parse(jsonText);
-
-      // Convert to TOML
-      const tomlText = this.TOML.stringify(jsonObj);
-      this.tomlInput.value = tomlText;
-
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        throw new Error(`Invalid JSON: ${error.message}`);
-      }
-      throw new Error(`Conversion error: ${error.message}`);
-    }
-  }
-
-  tomlToJson() {
-    const tomlText = this.tomlInput.value.trim();
-
-    if (!tomlText) {
-      this.jsonInput.value = '';
-      return;
-    }
-
-    try {
-      // Parse TOML
-      const tomlObj = this.TOML.parse(tomlText);
-
-      // Convert to JSON with pretty formatting
-      const jsonText = JSON.stringify(tomlObj, null, 2);
-      this.jsonInput.value = jsonText;
-
-    } catch (error) {
-      throw new Error(`Invalid TOML: ${error.message}`);
-    }
-  }
-
-  async copyToClipboard(side) {
-    const text = side === 'json' ? this.jsonInput.value : this.tomlInput.value;
-
+  async copy() {
+    const text = this.outputArea.value;
     if (!text.trim()) {
-      this.showError('Nothing to copy!');
+      this.showToast('Nothing to copy!', 'warning');
       return;
     }
 
     try {
+      // Check if clipboard API is available (requires HTTPS)
+      if (!navigator.clipboard) {
+        // Fallback for HTTP or old browsers
+        this.fallbackCopy(text);
+        return;
+      }
+
       await navigator.clipboard.writeText(text);
-      this.showSuccess(`${side.toUpperCase()} copied to clipboard!`);
+      this.showToast('Copied to clipboard!', 'success');
     } catch (error) {
-      this.showError('Failed to copy to clipboard');
+      this.fallbackCopy(text);
     }
+  }
+
+  fallbackCopy(text) {
+    // Old-school copy method
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    try {
+      document.execCommand('copy');
+      this.showToast('Copied to clipboard!', 'success');
+    } catch (err) {
+      this.showToast('Copy failed - please copy manually', 'error');
+    }
+
+    document.body.removeChild(textarea);
+  }
+
+  clear() {
+    // Confirm before clearing if there's content
+    if (this.inputArea.value.trim() || this.outputArea.value.trim()) {
+      if (!confirm('Clear all content? This cannot be undone.')) {
+        return;
+      }
+    }
+
+    this.inputArea.value = '';
+    this.outputArea.value = '';
+    this.inputArea.removeAttribute('aria-invalid');
+    this.showToast('Cleared', 'success');
   }
 
   loadSample() {
-    const sampleJson = {
-      "app": {
-        "name": "JSON-TOML Converter",
-        "version": "1.0.0",
-        "description": "A simple and elegant converter"
-      },
-      "features": [
-        "Bi-directional conversion",
-        "Live updates",
-        "Copy to clipboard",
-        "Error handling"
-      ],
-      "config": {
-        "theme": "light",
-        "debounce": 300,
-        "autoConvert": true
-      },
-      "metadata": {
-        "created": "2025-11-22",
-        "author": "Claude"
+    // Confirm before overwriting if there's existing content
+    if (this.inputArea.value.trim() && this.inputArea.value !== this.getLastSample()) {
+      if (!confirm('Load example? This will replace your current input.')) {
+        return;
       }
+    }
+
+    const sample = {
+      "name": "my-app",
+      "version": "1.0.0",
+      "description": "A sample application",
+      "dependencies": {
+        "express": "^4.18.0",
+        "react": "^18.2.0"
+      },
+      "config": {
+        "port": 3000,
+        "host": "localhost",
+        "debug": true
+      },
+      "scripts": [
+        "start",
+        "build",
+        "test"
+      ]
     };
 
-    this.jsonInput.value = JSON.stringify(sampleJson, null, 2);
-    this.lastEditedSide = 'json';
-    this.convert('json');
+    this.lastSample = JSON.stringify(sample, null, 2);
+    this.inputArea.value = this.lastSample;
+    this.convert();
   }
 
-  clearAll() {
-    this.jsonInput.value = '';
-    this.tomlInput.value = '';
-    this.clearError();
+  getLastSample() {
+    return this.lastSample || '';
   }
 
-  showError(message) {
-    this.errorDisplay.textContent = `❌ ${message}`;
-    this.errorDisplay.className = 'message error';
-    this.errorDisplay.style.display = 'block';
+  showToast(message, type = 'info', duration = 3000) {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
 
-    // Auto-hide after 5 seconds
-    setTimeout(() => this.clearError(), 5000);
-  }
+    this.toastContainer.appendChild(toast);
 
-  showSuccess(message) {
-    this.errorDisplay.textContent = `✓ ${message}`;
-    this.errorDisplay.className = 'message success';
-    this.errorDisplay.style.display = 'block';
+    // Trigger animation
+    requestAnimationFrame(() => {
+      toast.classList.add('show');
+    });
 
-    // Auto-hide after 2 seconds
-    setTimeout(() => this.clearError(), 2000);
-  }
-
-  clearError() {
-    this.errorDisplay.style.display = 'none';
-    this.errorDisplay.textContent = '';
+    // Auto-remove after duration (0 = permanent)
+    if (duration > 0) {
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
   }
 }
 
-// Initialize when DOM is ready
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
-  window.converter = new Converter();
+  new Converter();
 });

@@ -15,12 +15,14 @@
             <p class="subtitle">Convert between JSON and TOML formats</p>
         </header>
 
-        <div class="converter-section">
-            <div class="controls">
-                <button id="jsonToTomlBtn" class="direction-btn active" title="Convert JSON to TOML">
+        <main class="converter-section">
+            <div class="controls" role="group" aria-label="Conversion direction">
+                <button type="button" id="jsonToTomlBtn" class="direction-btn active"
+                        title="Convert JSON to TOML" aria-pressed="true">
                     JSON → TOML
                 </button>
-                <button id="tomlToJsonBtn" class="direction-btn" title="Convert TOML to JSON">
+                <button type="button" id="tomlToJsonBtn" class="direction-btn"
+                        title="Convert TOML to JSON" aria-pressed="false">
                     TOML → JSON
                 </button>
             </div>
@@ -53,17 +55,20 @@
             </div>
 
             <div class="button-group">
-                <button id="copyBtn" class="action-btn" title="Copy output to clipboard">
-                    📋 Copy
+                <button type="button" id="copyBtn" class="action-btn"
+                        title="Copy output to clipboard" aria-label="Copy output to clipboard">
+                    Copy
                 </button>
-                <button id="clearBtn" class="action-btn" title="Clear all inputs">
-                    🗑 Clear
+                <button type="button" id="clearBtn" class="action-btn"
+                        title="Clear all inputs" aria-label="Clear all content">
+                    Clear
                 </button>
-                <button id="sampleBtn" class="action-btn" title="Load sample JSON">
-                    📝 Sample
+                <button type="button" id="sampleBtn" class="action-btn"
+                        title="Load sample JSON" aria-label="Load example data">
+                    Load Example
                 </button>
             </div>
-        </div>
+        </main>
 
         <footer class="app-footer">
             <p>JSON ⇄ TOML Converter • Built with care</p>
